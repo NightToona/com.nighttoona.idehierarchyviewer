@@ -1,0 +1,19 @@
+{
+  "name": "com.nighttoona.idehierarchyviewer",
+  "version": "0.1.0",
+  "displayName": "IDE Hierarchy Viewer",
+  "description": "Export Unity Hierarchy structure for external IDE plugins like Rider or Visual Studio and more.\n导出 Unity 层级结构，以便 Rider 或 Visual Studio 等外部集成开发环境插件使用。",
+  "unity": "2021.3",
+  "keywords": [
+    "unity",
+    "hierarchy",
+    "editor",
+    "plugin",
+    "rider",
+    "visual studio"
+  ],
+  "author": {
+    "name": "NightToona",
+    "email": "NightToona@outlook.com"
+  }
+}
