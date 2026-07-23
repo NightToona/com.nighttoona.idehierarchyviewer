@@ -51,7 +51,7 @@ namespace Editor
             }
             catch (SocketException e)
             {
-                Debug.Log($"The port may already be in use.\n{e.Message}");
+                Debug.LogError($"The port may already be in use.\n{e.Message}");
                 Stop();
                 return;
             }
