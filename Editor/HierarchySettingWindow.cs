@@ -53,33 +53,12 @@ namespace Editor
                 heartbeatIntervalSeconds = m_HeartbeatIntervalSeconds;
                 Debug.Log($"{port}, {heartbeatIntervalSeconds} saved to EditorPrefs.");
             }
+
+            if (GUILayout.Button("Retry Connection"))
+            {
+                TcpServer.RetryStart(m_Port);
+            }
         }
-
-
-        /*
-        private int PortChecker(int port)
-        {
-            while (IsPortInUse(port))
-            {
-                port++;
-            }
-            return port;
-        }
-
-        private bool IsPortInUse(int port)
-        {
-            try
-            {
-                //如果被占用，则start时会抛出异常
-                TcpListener listener = new TcpListener(IPAddress.Loopback, port);
-                listener.Start();
-                listener.Stop();
-                return false; //端口未被占用
-            }
-            catch
-            {
-                return true; //端口被占用
-            }
-        }*/
+        
     }
 }

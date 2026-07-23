@@ -27,6 +27,9 @@ namespace Editor
         private static NetworkStream _Stream;
 
         private static bool _Running;
+        private static bool _IsStarting;
+        
+        
 
         static TcpServer()
         {
@@ -39,10 +42,23 @@ namespace Editor
         
         private static async Task StartListen(int port)
         {
-            _Listener = new TcpListener(IPAddress.Loopback, port);
-            _Listener.Start();
+            _IsStarting = true;
+            
+            try
+            {
+                _Listener = new TcpListener(IPAddress.Loopback, port);
+                _Listener.Start();
+            }
+            catch (SocketException e)
+            {
+                Debug.Log($"The port may already be in use.\n{e.Message}");
+                Stop();
+                return;
+            }
+            
 
             _Running = true;
+            _IsStarting = false;
             
             while (_Running)
             {
@@ -78,6 +94,23 @@ namespace Editor
             await _Stream.WriteAsync(data);
             await _Stream.FlushAsync();
         }
+        
+        /// <summary>
+        /// 重启TcpListen
+        /// </summary>
+        /// <param name="port">int</param>
+        public static void RetryStart(int port)
+        {
+            if (_Running || _IsStarting)
+            {
+                return;
+            }
+
+            Debug.Log("retry Start");
+            _ = StartListen(port);
+        }
+        
+        
 
         // 监听检测是否释放客户端
         private static async Task ReceiveLoop()
@@ -101,11 +134,12 @@ namespace Editor
             }
         }
 
-        
+
         // 关闭编辑器、重新编译后结束旧生命周期残余内容
         private static void Stop()
         {
             _Running = false;
+            _IsStarting = false;
             
             _Stream?.Close();
             _Client?.Close();
