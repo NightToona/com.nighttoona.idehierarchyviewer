@@ -13,16 +13,16 @@ namespace Editor
             get => EditorPrefs.GetInt("HierarchySettingWindow_Port", 44571); 
             private set => EditorPrefs.SetInt("HierarchySettingWindow_Port", value);
         }
-        public static float heartbeatIntervalSeconds
+        public static int heartbeatIntervalSeconds
         {
-            get => EditorPrefs.GetFloat("HierarchySettingWindow_HeartbeatIntervalSeconds", 1.0f); 
-            private set => EditorPrefs.SetFloat("HierarchySettingWindow_HeartbeatIntervalSeconds", value);
+            get => EditorPrefs.GetInt("HierarchySettingWindow_HeartbeatIntervalSeconds", 1); 
+            private set => EditorPrefs.SetInt("HierarchySettingWindow_HeartbeatIntervalSeconds", value);
         }
 
         
         // 临时变量负责GUI中的显示修改，降低反复get/set开销
         private int m_Port;
-        private float m_HeartbeatIntervalSeconds;
+        private int m_HeartbeatIntervalSeconds;
         
         
         [MenuItem("Tools/IDE Hierarchy Viewer Setting/Settings")]
@@ -43,7 +43,7 @@ namespace Editor
             GUILayout.Label("TCP Port Setting", EditorStyles.boldLabel);
             m_Port = EditorGUILayout.IntField("Port:", m_Port); //需要检查port是否占用
 
-            m_HeartbeatIntervalSeconds = EditorGUILayout.FloatField("Heartbeat Interval (second):", m_HeartbeatIntervalSeconds);
+            m_HeartbeatIntervalSeconds = EditorGUILayout.IntField("Heartbeat Interval (s):", m_HeartbeatIntervalSeconds);
             GUILayout.Space(10);
 
 

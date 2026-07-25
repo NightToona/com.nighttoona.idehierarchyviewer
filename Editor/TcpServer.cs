@@ -9,7 +9,7 @@ using UnityEngine;
 namespace Editor
 {
     /// <summary>
-    /// 限制类型 （1-XML; 2-Heartbeat; 3-Close; 0-None）
+    /// 限制类型 （1-XML; 2-HeartbeatPing; 3-HeartbeatPong; 4-Close; 0-None）
     /// </summary>
     public enum MessageType
     {
@@ -30,6 +30,8 @@ namespace Editor
 
         private static bool _Running;
         private static bool _IsStarting;
+        
+        private static bool _WaitingForPong;
         
         
 
@@ -58,7 +60,6 @@ namespace Editor
                 return;
             }
             
-
             _Running = true;
             _IsStarting = false;
             
@@ -66,8 +67,10 @@ namespace Editor
             {
                 _Client = await _Listener.AcceptTcpClientAsync();
                 _Stream = _Client.GetStream();
-                
-                // 检测是否还在连接状态
+                _WaitingForPong = false;
+
+                // 启动心跳检测以及接收消息循环
+                _ = HeartbeatLoop(_Client);
                 await ReceiveLoop();
             
                 _Stream.Close();
@@ -75,11 +78,12 @@ namespace Editor
             }
         }
 
+        
 
         /// <summary>
         /// 发送消息到客户端
         /// </summary>
-        /// <param name="message">String</param>
+        /// <param name="message">String or null</param>
         /// <param name="type">MessageType</param>
         public static async Task SendMessage(MessageType type, string message = "")
         {
@@ -98,7 +102,7 @@ namespace Editor
                 case MessageType.XML:
                     if (string.IsNullOrEmpty(message))
                     {
-                        Debug.LogWarning("XML message is empty");
+                        Debug.Log("XML message is empty");
                         return;
                     }
                     break;
@@ -110,7 +114,7 @@ namespace Editor
                     break;
                 
                 default:
-                    Debug.LogWarning("Unknown message type");
+                    Debug.Log("Unknown message type");
                     return;
             }
 
@@ -122,7 +126,6 @@ namespace Editor
             await _Stream.WriteAsync(data);
             await _Stream.FlushAsync();
         }
-        
         
         /// <summary>
         /// 重启TcpListen
@@ -140,29 +143,74 @@ namespace Editor
         }
         
         
-        
 
         // 监听检测是否释放客户端
         private static async Task ReceiveLoop()
         {
             byte[] buffer = new byte[1024];
 
-            while (true)
+            // 当心跳停止时，ReadAsync会返回异常，通过try-catch捕获异常并结束循环
+            try
             {
-                Array.Clear(buffer, 0, buffer.Length); // 清理残余缓存
-                
-                int length = await _Stream.ReadAsync(buffer);
-
-                // FIN返回
-                if (length == 0)
+                while (true)
                 {
-                    break;
-                }
+                    Array.Clear(buffer, 0, buffer.Length); // 清理残余缓存
+                
+                    int length = await _Stream.ReadAsync(buffer);
+                    if (length == 0) break; // FIN返回
+                    
+                    
+                    string message = Encoding.UTF8.GetString(buffer, 0, length);
 
-                string message = Encoding.UTF8.GetString(buffer, 0, length);
-                Debug.Log($"Receive {message}");
+                    if (message == "[3][0]") // 收到PONG
+                    {
+                        _WaitingForPong = false;
+                        Debug.Log("PONG received.");
+                    }
+                    else
+                    {
+                        Debug.Log($"Message: {message}");
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.Log(e);
             }
         }
+        
+        
+        // 心跳检测
+        private static async Task HeartbeatLoop(TcpClient client)
+        {
+            try
+            {
+                // 保证新旧客户端切换时不会干扰，且在客户端断开连接时停止心跳
+                while (_Running && _Client == client && _Stream != null)
+                {
+                    await Task.Delay(HierarchySettingWindow.heartbeatIntervalSeconds * 1000);
+                    if (!_Running || _Client != client || _Stream == null) break; // 防止等待期间状态变化
+
+                    _WaitingForPong = true;
+                    await SendMessage(MessageType.HeartbeatPing);
+
+                    await Task.Delay(5000); // 等待5秒钟，如果没有收到Pong则认为客户端断开连接
+                    if (!_Running || _Client != client || _Stream == null) break; // 防止等待期间状态变化
+
+                    if (_WaitingForPong)
+                    {
+                        Debug.Log("Client didn't respond. Closing connection.");
+                        _Stream?.Close();
+                        break;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.Log(e.Message);
+            }
+        }
+        
 
         // 关闭编辑器、重新编译后结束旧生命周期残余内容
         private static void Stop()
