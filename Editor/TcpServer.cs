@@ -1,6 +1,7 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
 using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
@@ -14,8 +15,9 @@ namespace Editor
     {
         None = 0,
         XML = 1,
-        Heartbeat = 2,
-        Close = 3
+        HeartbeatPing = 2,
+        HeartbeatPong = 3,
+        Close = 4
     }
 
     
@@ -75,11 +77,11 @@ namespace Editor
 
 
         /// <summary>
-        /// 发送数据到客户端 - TCP
+        /// 发送消息到客户端
         /// </summary>
-        /// <param name="message">string</param>
+        /// <param name="message">String</param>
         /// <param name="type">MessageType</param>
-        public static async Task SendMessage(MessageType type, string message)
+        public static async Task SendMessage(MessageType type, string message = "")
         {
             if (_Client == null || _Stream == null)
             {
@@ -87,13 +89,40 @@ namespace Editor
                 return;
             }
 
-            message = $"{(int)type}|" + message;
+            // 根据消息类型处理消息内容
+            switch (type)
+            {
+                case MessageType.None:
+                    return;
+                
+                case MessageType.XML:
+                    if (string.IsNullOrEmpty(message))
+                    {
+                        Debug.LogWarning("XML message is empty");
+                        return;
+                    }
+                    break;
+                
+                case MessageType.HeartbeatPing:
+                case MessageType.HeartbeatPong:
+                case MessageType.Close:
+                    message = String.Empty;
+                    break;
+                
+                default:
+                    Debug.LogWarning("Unknown message type");
+                    return;
+            }
 
-            byte[] data = System.Text.Encoding.UTF8.GetBytes(message);
+            int bodyLength = Encoding.UTF8.GetByteCount(message);
+
+            message = $"[{(int)type}][{bodyLength}]" + message;
+            byte[] data = Encoding.UTF8.GetBytes(message);
 
             await _Stream.WriteAsync(data);
             await _Stream.FlushAsync();
         }
+        
         
         /// <summary>
         /// 重启TcpListen
@@ -109,6 +138,7 @@ namespace Editor
             Debug.Log("retry Start");
             _ = StartListen(port);
         }
+        
         
         
 
@@ -129,11 +159,10 @@ namespace Editor
                     break;
                 }
 
-                string message = System.Text.Encoding.UTF8.GetString(buffer, 0, length);
+                string message = Encoding.UTF8.GetString(buffer, 0, length);
                 Debug.Log($"Receive {message}");
             }
         }
-
 
         // 关闭编辑器、重新编译后结束旧生命周期残余内容
         private static void Stop()
