@@ -16,6 +16,10 @@ A Unity Editor package that exports the current Scene Hierarchy to external IDE 
 - 支持 Ping/Pong 心跳检测
 - 支持自定义端口和心跳间隔
 
+## Project Detail MD
+
+[Projects/Project 1 - Hierarchy Tool](https://github.com/NightToona/UnityClient-Engineering-Notes/blob/0089f13df53eada2bcab9eb2dff6a382e4bb3bfd/Projects/Project%201%20-%20Hierarchy%20Tool.md)
+
 ## Usage
 
 安装 Package 后，TCP Server 会自动启动。
