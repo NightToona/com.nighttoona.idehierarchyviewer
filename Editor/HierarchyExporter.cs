@@ -44,7 +44,7 @@ namespace Editor
         {
             return ToString(0);
         }
-
+        
         // 递归打印层级结构
         private string ToString(int depth)
         {
@@ -101,7 +101,7 @@ namespace Editor
             // 将层级树导出为XML-String
             string xmlData = XmlExporter.Export(rootNode);
             
-            //Debug.Log(xmlData);
+            Debug.Log(xmlData);
             
             // 发送XML数据到客户端
             await TcpServer.SendMessage(MessageType.XML, xmlData);
