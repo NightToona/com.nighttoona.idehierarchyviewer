@@ -62,12 +62,16 @@ namespace Editor
             
             _Running = true;
             _IsStarting = false;
+
+            
             
             while (_Running)
             {
                 _Client = await _Listener.AcceptTcpClientAsync();
                 _Stream = _Client.GetStream();
                 _WaitingForPong = false;
+                
+                Debug.Log("成功连接到客户端");
 
                 // 启动心跳检测以及接收消息循环
                 _ = HeartbeatLoop(_Client);
@@ -75,6 +79,7 @@ namespace Editor
             
                 _Stream.Close();
                 _Client.Close();
+                Debug.Log("旧客户端已断开，等待二次连接……");
             }
         }
 
@@ -87,11 +92,8 @@ namespace Editor
         /// <param name="type">MessageType</param>
         public static async Task SendMessage(MessageType type, string message = "")
         {
-            if (_Client == null || _Stream == null)
-            {
-                Debug.Log("No Client Connected.");
-                return;
-            }
+            if (_Client == null || _Stream == null) return;
+            
 
             // 根据消息类型处理消息内容
             switch (type)
@@ -138,7 +140,7 @@ namespace Editor
                 return;
             }
 
-            Debug.Log("retry Start");
+            Debug.Log("尝试重连中……");
             _ = StartListen(port);
         }
         
@@ -165,7 +167,6 @@ namespace Editor
                     if (message == "[3][0]") // 收到PONG
                     {
                         _WaitingForPong = false;
-                        Debug.Log("PONG received.");
                     }
                     else
                     {

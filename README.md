@@ -1,5 +1,11 @@
 # IDE Hierarchy Viewer
 
+[![Rider Plugin](https://img.shields.io/badge/Rider-Go%20To%20Plugin%20Page-000000?logo=rider&logoColor=white)](https://github.com/NightToona/UnityHierarchyViewerClient)
+![Unity](https://img.shields.io/badge/Unity-2021.3%2B-222C37?logo=unity&logoColor=white)
+![Version](https://img.shields.io/badge/version-0.5.1-blue)
+![Status](https://img.shields.io/badge/status-work%20in%20progress-orange)
+
+
 A Unity Editor package that exports the current Scene Hierarchy to external IDE plugins through TCP.
 
 用于将 Unity Hierarchy 数据同步给 Rider、Visual Studio 等外部 IDE 插件（暂仅支持单连接）。

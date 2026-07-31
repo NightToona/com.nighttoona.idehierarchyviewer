@@ -97,12 +97,13 @@ namespace Editor
             
             // 将层级树打印到控制台
             //Debug.Log(rootNode.ToString());
+            //Debug.Log(xmlData);
             
+
             // 将层级树导出为XML-String
             string xmlData = XmlExporter.Export(rootNode);
-            
-            Debug.Log(xmlData);
-            
+
+
             // 发送XML数据到客户端
             await TcpServer.SendMessage(MessageType.XML, xmlData);
         }
