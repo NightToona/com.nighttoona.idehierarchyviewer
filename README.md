@@ -2,9 +2,9 @@
 
 A Unity Editor package that exports the current Scene Hierarchy to external IDE plugins through TCP.
 
-用于将 Unity Hierarchy 数据同步给 Rider、Visual Studio 等外部 IDE 插件。
+用于将 Unity Hierarchy 数据同步给 Rider、Visual Studio 等外部 IDE 插件（暂仅支持单连接）。
 
-> 当前状态：Unity 服务端 MVP 已完成，IDE 客户端仍在开发中。
+> 当前状态：Unity 服务端 MVP 已完成，IDE 客户端基本实现。
 
 ## Features
 
@@ -19,6 +19,11 @@ A Unity Editor package that exports the current Scene Hierarchy to external IDE 
 ## Usage
 
 安装 Package 后，TCP Server 会自动启动。
+
+界面样式：
+
+<img width="540" height="173" alt="image" src="https://github.com/user-attachments/assets/195f3c75-2259-4b69-a689-d53cbcad9cfb" />
+
 
 默认地址：
 
@@ -37,8 +42,10 @@ Tools > IDE Hierarchy Viewer Setting > Settings
 ```
 
 ## Status
-目前为单客户端 Demo/MVP。
+该项目为 Unity侧 服务端 Demo/MVP。
 待完成：
-- TCP 完整拆包处理
-- IDE 客户端插件
-- 连接与消息发送结构优化
+- TCP 接收拆包处理
+- 结构与性能优化
+
+IDE端项目已上线开放：
+[Rider Client](https://github.com/NightToona/UnityHierarchyViewerClient)
