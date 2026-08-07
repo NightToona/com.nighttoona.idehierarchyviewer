@@ -14,6 +14,11 @@ A Unity Editor extension that synchronizes Unity Hierarchy data with external ID
 > 
 > **后续优化方向**：通信性能优化、扩展多客户端支持。
 
+GIF效果图片展示：
+
+<img width="460" height="259" alt="Hierarchy" src="https://github.com/user-attachments/assets/cd93add4-e49c-42ee-9c87-9de2b7a491ee" />
+
+
 ## Features
 
 - Unity Editor Hierarchy 变化监听
