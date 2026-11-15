@@ -71,6 +71,11 @@ namespace Editor
             EditorApplication.hierarchyChanged += GetHierarchyData;
         }
 
+        internal static void SendCurrentHierarchy()
+        {
+            GetHierarchyData();
+        }
+
         private static async void GetHierarchyData()
         {
             List<GameObject> objectInScene = new List<GameObject>();

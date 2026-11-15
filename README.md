@@ -2,7 +2,7 @@
 
 [![Rider Plugin](https://img.shields.io/badge/Rider-Go%20To%20Plugin%20Page-000000?logo=rider&logoColor=white)](https://github.com/NightToona/UnityHierarchyViewerClient)
 ![Unity](https://img.shields.io/badge/Unity-2021.3%2B-222C37?logo=unity&logoColor=white)
-![Version](https://img.shields.io/badge/version-0.5.1-blue)
+![Version](https://img.shields.io/badge/version-0.6.1-blue)
 ![Status](https://img.shields.io/badge/status-MVP%20completed-success)
 
 
@@ -33,6 +33,10 @@ GIF效果图片展示：
 ## Project Introduction Document
 
 [Projects/Project 1 - Hierarchy Tool](https://github.com/NightToona/UnityClient-Engineering-Notes/blob/0089f13df53eada2bcab9eb2dff6a382e4bb3bfd/Projects/Project%201%20-%20Hierarchy%20Tool.md)
+
+## Version History
+
+[Changelog](CHANGELOG.md)
 
 ## Usage
 

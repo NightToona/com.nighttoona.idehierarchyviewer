@@ -8,30 +8,21 @@ using UnityEngine;
 
 namespace Editor
 {
-    /// <summary>
-    /// 限制类型 （1-XML; 2-HeartbeatPing; 3-HeartbeatPong; 4-Close; 0-None）
-    /// </summary>
-    public enum MessageType
-    {
-        None = 0,
-        XML = 1,
-        HeartbeatPing = 2,
-        HeartbeatPong = 3,
-        Close = 4
-    }
-
     
     [InitializeOnLoad]
     public class TcpServer
     {
-        private static TcpListener _Listener;
-        private static TcpClient _Client;
-        private static NetworkStream _Stream;
+        #region Connection lifecycle
 
+        private static TcpListener _Listener;
+        private static TcpSession _CurrentSession;
+        
+        [Obsolete]private static TcpClient _Client;
+        [Obsolete]private static NetworkStream _Stream;
+
+        
         private static bool _Running;
         private static bool _IsStarting;
-        
-        private static bool _WaitingForPong;
         
         
 
@@ -62,38 +53,50 @@ namespace Editor
             
             _Running = true;
             _IsStarting = false;
-
-            
             
             while (_Running)
             {
-                _Client = await _Listener.AcceptTcpClientAsync();
-                _Stream = _Client.GetStream();
-                _WaitingForPong = false;
+                var session = new TcpSession(await _Listener.AcceptTcpClientAsync());
+                _CurrentSession = session;
                 
                 Debug.Log("成功连接到客户端");
+                HierarchyExporter.SendCurrentHierarchy();
 
                 // 启动心跳检测以及接收消息循环
-                _ = HeartbeatLoop(_Client);
-                await ReceiveLoop();
-            
-                _Stream.Close();
-                _Client.Close();
+                _ = HeartbeatLoop(session);
+                await ReceiveLoop(session);
+
+                session.Dispose();
                 Debug.Log("旧客户端已断开，等待二次连接……");
             }
         }
 
+        #endregion
         
 
+        #region Sending
+
         /// <summary>
-        /// 发送消息到客户端
+        /// 发送消息到客户端（供外部调用）
         /// </summary>
-        /// <param name="message">String or null</param>
         /// <param name="type">MessageType</param>
-        public static async Task SendMessage(MessageType type, string message = "")
+        /// <param name="message">String</param>
+        public static Task SendMessage(MessageType type, string message = "")
         {
-            if (_Client == null || _Stream == null) return;
-            
+            return SendMessage(_CurrentSession, type, message);
+        }
+        
+        /// <summary>
+        /// 向指定客户端发送消息（供内部调用）
+        /// </summary>
+        /// <param name="session">TcpSession</param>
+        /// <param name="type">MessageType</param>
+        /// <param name="message">String</param>
+        private static async Task SendMessage(TcpSession session, MessageType type, string message = "")
+        {
+            // 防止在等待过程中状态变化
+            if (session == null || !ReferenceEquals(_CurrentSession, session) || session.State != SessionState.Connected)
+                return;
 
             // 根据消息类型处理消息内容
             switch (type)
@@ -124,10 +127,19 @@ namespace Editor
 
             message = $"[{(int)type}][{bodyLength}]" + message;
             byte[] data = Encoding.UTF8.GetBytes(message);
+            
+            // 防止在信息处理过程中状态变化
+            if (!ReferenceEquals(_CurrentSession, session) || session.State != SessionState.Connected)
+                return;
 
-            await _Stream.WriteAsync(data);
-            await _Stream.FlushAsync();
+            await session.Stream.WriteAsync(data);
+            await session.Stream.FlushAsync();
         }
+
+        #endregion
+
+        #region Reconnection
+
         
         /// <summary>
         /// 重启TcpListen
@@ -143,11 +155,15 @@ namespace Editor
             Debug.Log("尝试重连中……");
             _ = StartListen(port);
         }
+
+        #endregion
+
+        #region Receiving
         
         
 
         // 监听检测是否释放客户端
-        private static async Task ReceiveLoop()
+        private static async Task ReceiveLoop(TcpSession session)
         {
             byte[] buffer = new byte[1024];
 
@@ -158,7 +174,7 @@ namespace Editor
                 {
                     Array.Clear(buffer, 0, buffer.Length); // 清理残余缓存
                 
-                    int length = await _Stream.ReadAsync(buffer);
+                    int length = await session.Stream.ReadAsync(buffer);
                     if (length == 0) break; // FIN返回
                     
                     
@@ -166,42 +182,51 @@ namespace Editor
 
                     if (message == "[3][0]") // 收到PONG
                     {
-                        _WaitingForPong = false;
+                        session.WaitingForPong = false;
                     }
                     else
                     {
                         Debug.Log($"Message: {message}");
                     }
-                }
+                } 
             }
             catch (Exception e)
             {
                 Debug.Log(e);
             }
         }
+
+        #endregion
+
+        #region Heartbeat
         
         
         // 心跳检测
-        private static async Task HeartbeatLoop(TcpClient client)
+        private static async Task HeartbeatLoop(TcpSession session)
         {
             try
             {
                 // 保证新旧客户端切换时不会干扰，且在客户端断开连接时停止心跳
-                while (_Running && _Client == client && _Stream != null)
+                while (_Running && ReferenceEquals(_CurrentSession, session) && session.State == SessionState.Connected)
                 {
                     await Task.Delay(HierarchySettingWindow.heartbeatIntervalSeconds * 1000);
-                    if (!_Running || _Client != client || _Stream == null) break; // 防止等待期间状态变化
+                    
+                    // 防止等待过程中状态变化
+                    if (!_Running || !ReferenceEquals(_CurrentSession, session) || session.State != SessionState.Connected)
+                        break;
 
-                    _WaitingForPong = true;
+                    session.WaitingForPong = true;
                     await SendMessage(MessageType.HeartbeatPing);
+                    await Task.Delay(HierarchySettingWindow.heartbeatIntervalSeconds * 1000);  // 等待PONG响应
+                    
+                    // 防止等待过程中状态变化
+                    if (!_Running || !ReferenceEquals(_CurrentSession, session) || session.State != SessionState.Connected)
+                        break;
 
-                    await Task.Delay(5000); // 等待5秒钟，如果没有收到Pong则认为客户端断开连接
-                    if (!_Running || _Client != client || _Stream == null) break; // 防止等待期间状态变化
-
-                    if (_WaitingForPong)
+                    if (session.WaitingForPong)
                     {
-                        Debug.Log("Client didn't respond. Closing connection.");
-                        _Stream?.Close();
+                        Debug.Log("客户端无响应，断开连接");
+                        _CurrentSession.Dispose();
                         break;
                     }
                 }
@@ -211,6 +236,10 @@ namespace Editor
                 Debug.Log(e.Message);
             }
         }
+
+        #endregion
+
+        #region Shutdown
         
 
         // 关闭编辑器、重新编译后结束旧生命周期残余内容
@@ -219,14 +248,14 @@ namespace Editor
             _Running = false;
             _IsStarting = false;
             
-            _Stream?.Close();
-            _Client?.Close();
+            _CurrentSession?.Dispose();
             _Listener?.Stop();
 
-            _Stream = null;
-            _Client = null;
+            _CurrentSession = null;
             _Listener = null;
         }
+
+        #endregion
     }
 
     

@@ -15,7 +15,7 @@ namespace Editor
         }
         public static int heartbeatIntervalSeconds
         {
-            get => EditorPrefs.GetInt("HierarchySettingWindow_HeartbeatIntervalSeconds", 1); 
+            get => EditorPrefs.GetInt("HierarchySettingWindow_HeartbeatIntervalSeconds", 5); 
             private set => EditorPrefs.SetInt("HierarchySettingWindow_HeartbeatIntervalSeconds", value);
         }
 
