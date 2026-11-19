@@ -2,6 +2,7 @@ using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
@@ -17,9 +18,7 @@ namespace Editor
         private static TcpListener _Listener;
         private static TcpSession _CurrentSession;
         
-        [Obsolete]private static TcpClient _Client;
-        [Obsolete]private static NetworkStream _Stream;
-
+        private static readonly SemaphoreSlim _SendLock = new(1, 1);
         
         private static bool _Running;
         private static bool _IsStarting;
@@ -54,20 +53,48 @@ namespace Editor
             _Running = true;
             _IsStarting = false;
             
+            
+            
             while (_Running)
             {
-                var session = new TcpSession(await _Listener.AcceptTcpClientAsync());
-                _CurrentSession = session;
+                TcpSession session;
+
                 
-                Debug.Log("成功连接到客户端");
-                HierarchyExporter.SendCurrentHierarchy();
+                // 防止在等待连接时，编辑器关闭或重新编译导致的异常
+                try
+                {
+                    var client = await _Listener.AcceptTcpClientAsync();
+                    session = new TcpSession(client);
+                }
+                catch (ObjectDisposedException) when (!_Running)
+                {
+                    break;
+                }
+                catch (SocketException) when (!_Running)
+                {
+                    break;
+                }
 
-                // 启动心跳检测以及接收消息循环
-                _ = HeartbeatLoop(session);
-                await ReceiveLoop(session);
+                
+                // 当前客户端异常断开后，继续等待新客户端连接
+                try
+                {
+                    _CurrentSession = session;
 
-                session.Dispose();
-                Debug.Log("旧客户端已断开，等待二次连接……");
+                    Debug.Log("成功连接到客户端");
+                    HierarchyExporter.SendCurrentHierarchy();
+
+                    // 启动心跳检测以及接收消息循环
+                    _ = HeartbeatLoop(session);
+                    await ReceiveLoop(session);
+                }
+                finally
+                {
+                    session.Dispose();
+                    if (ReferenceEquals(_CurrentSession, session)) _CurrentSession = null;
+                    
+                    Debug.Log("旧客户端已断开，等待二次连接……");
+                }
             }
         }
 
@@ -128,12 +155,22 @@ namespace Editor
             message = $"[{(int)type}][{bodyLength}]" + message;
             byte[] data = Encoding.UTF8.GetBytes(message);
             
-            // 防止在信息处理过程中状态变化
-            if (!ReferenceEquals(_CurrentSession, session) || session.State != SessionState.Connected)
-                return;
+            
+            await _SendLock.WaitAsync();
+            
+            try
+            {
+                // 排队期间连接可能已经关闭或切换
+                if (!ReferenceEquals(_CurrentSession, session) || session.State != SessionState.Connected)
+                    return;
 
-            await session.Stream.WriteAsync(data);
-            await session.Stream.FlushAsync();
+                await session.Stream.WriteAsync(data);
+                await session.Stream.FlushAsync();
+            }
+            finally
+            {
+                _SendLock.Release();
+            }
         }
 
         #endregion
@@ -216,7 +253,7 @@ namespace Editor
                         break;
 
                     session.WaitingForPong = true;
-                    await SendMessage(MessageType.HeartbeatPing);
+                    await SendMessage(session, MessageType.HeartbeatPing);
                     await Task.Delay(HierarchySettingWindow.heartbeatIntervalSeconds * 1000);  // 等待PONG响应
                     
                     // 防止等待过程中状态变化
